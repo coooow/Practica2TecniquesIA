@@ -1,5 +1,11 @@
 import random
 from enum import Enum
+###NORMES PREVIES####
+#1. El jugador només pot alliberar una carta descoberta o reservada en cada torn.
+#2. Per alliberar una carta de plata, el jugador ha de tenir 6 cartes de bronze alliberades.
+#3. Per alliberar una carta d'or, el jugador ha de tenir 3 cartes de plata alliberades.
+#4. Un jugador no pot reservar una carta si ja té una carta reservada.
+
 ## TOTES LES CLASSES
 
 #### Classe Card
@@ -56,7 +62,7 @@ class Jugador:
     
     #Alliberar la carta reservada
     def alliberarCarta(self, carta):
-        #Comprovar que la carta a alliberar es la reservada o la descoberta
+        #Comprobem el tipus i si compleix la norma
         if (carta.tipus == TipusCarta.BRONZE):
             self.bronzes += 1
         
@@ -73,13 +79,31 @@ class Jugador:
         if(carta==self.cartaDescoberta):
             self.cartaDescoberta = None
         
-        return True        
+        return True
+    
+    #Bloqueja al jugador
+    def bloquejarJugador(jugador):
+        if(jugador.bloquejat):
+            print(f"{jugador.nom} ja està bloquejat")
+            return False
+        jugador.bloquejat= True
+        return True
+    #Retorna la carta a la baralla i la barreja
+    
+    def RetornarCarta(self, carta):
+        self.baralla.append(carta)
+        random.shuffle(self.baralla)
+        if(carta==self.cartaReservada):
+            self.cartaReservada = None
+
+        if(carta==self.cartaDescoberta):
+            self.cartaDescoberta = None
     
 ##Llògia del joc
 def play():
-    print ("Welcome to the Card Game!")
-    nomJugador1 =input("Enter the name of player 1:")
-    nomJugador2 =input("Enter the name of player 2:")
+    print ("Benvingut al joc de cartes!")
+    nomJugador1 =input("Introdueix el nom del jugador 1:")
+    nomJugador2 =input("Introdueix el nom del jugador 2:")
 
     jugador1 = Jugador(nomJugador1)
     jugador1.crearBaralla()
@@ -88,3 +112,60 @@ def play():
 
     guanyador = False
     while guanyador ==False:
+        for jugador in [jugador1, jugador2]:
+            print(f"Torn de {jugador.nom}")
+            cartaDescoberta = jugador.descobrirCarta()
+            if cartaDescoberta is not None:
+                print(f"{jugador.nom} ha descobert un/a {cartaDescoberta}")
+
+                opció_valida = False
+                while not opció_valida:
+                    print(f"{jugador.nom} quina acció vols fer?")
+                    print(f"1: Alliberar carta descoberta")
+                    print(f"2: Alliberar carta reservada")
+                    print(f"3: Reservar carta")
+                    print(f"4: Retornar carta i barrejar")
+                    print(f"5: Bloquejar jugador")
+                    accio=input("Opció: ")
+                    if accio =="1":
+                        if jugador.alliberarCarta(cartaDescoberta):
+                            print(f"{jugador.nom} ha alliberat un/a {cartaDescoberta}")
+                            print(f"{jugador.nom} té {jugador.bronzes} bronzes, {jugador.platas} platas i {jugador.ors} ors")
+                            opció_valida = True
+                        else:
+                            print(f"{jugador.nom} no pot alliberar un/a {cartaDescoberta}")
+
+                    elif accio =="2":
+                        if jugador.cartaReservada is not None and jugador.alliberarCarta(jugador.cartaReservada):
+                            print(f"{jugador.nom} ha alliberat un/a {jugador.cartaReservada}")
+                            print(f"{jugador.nom} té {jugador.bronzes} bronzes, {jugador.platas} platas i {jugador.ors} ors")
+                            opció_valida = True
+                        else:
+                            print(f"{jugador.nom} no pot alliberar la carta reservada")
+                        
+                    elif accio =="3":
+                        if jugador.reservarCarta():
+                            print(f"{jugador.nom} ha reservat un/a {cartaDescoberta}")
+                            opció_valida = True
+                        else:
+                            print(f"{jugador.nom} no pot reservar un/a {cartaDescoberta}")
+
+                    elif accio =="4":
+                        jugador.RetornarCarta(cartaDescoberta)
+                        print(f"{jugador.nom} ha retornat la carta i ha barrejat la baralla")
+                        opció_valida = True
+                    
+                    elif accio =="5":
+                        if jugador.bloquejarJugador(jugador):
+                            print(f"{jugador.nom} ha bloquejat al jugador")
+                            opció_valida = True
+                        else:
+                            print(f"{jugador.nom} no pot bloquejar al jugador")
+                    else:
+                        print("Opció no vàlida, torna a intentar-ho.")
+                ##FI WHILE OPCIÓ_VÀLIDA
+                if(jugador.ors == 1):
+                    guanyador = True
+                    print(f"{jugador.nom} ha guanyat el joc!")
+                
+                    
