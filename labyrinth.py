@@ -1,4 +1,6 @@
 import random
+from aima3.search import Problem, astar_search
+
 
 N_BRONZE = 6
 N_SILVER = 3
@@ -16,8 +18,64 @@ current_col = 0
 
 hasGold = False
 
+# Variables de puntuació 
+movementCount = 0
+minCostToGold = 0
+
+# Classe per al problema de cerca
+class LabyrinthProblem(Problem):
+    def __init__(self, initial, goal, board, can_silver, can_gold):
+        """
+        initial: (row, col)
+        goal: (row, col)
+        board: matriu 2D
+        """
+        super().__init__(initial, goal)
+        self.board = board
+        self.can_silver = can_silver
+        self.can_gold = can_gold
+        self.rows = len(board)
+        self.cols = len(board[0])
+
+    def actions(self, state):
+        row, col = state
+        possible_actions = []
+        # Mapa de moviments i els seus offsets (8 direccions)
+        moves = {
+            "W": (-1, 0), "S": (1, 0), "A": (0, -1), "D": (0, 1),
+            "Q": (-1, -1), "E": (-1, 1), "Z": (1, -1), "C": (1, 1)
+        }
+        
+        for action, (dr, dc) in moves.items():
+            nr, nc = row + dr, col + dc
+            if 0 <= nr < self.rows and 0 <= nc < self.cols:
+                char = self.board[nr][nc]
+                if char != "X":
+                    # Restriccions jeràrquiques
+                    if char == "S" and not self.can_silver: continue
+                    if char == "G" and not self.can_gold: continue
+                    possible_actions.append(action)
+        return possible_actions
+
+    def result(self, state, action):
+        row, col = state
+        moves = {
+            "W": (-1, 0), "S": (1, 0), "A": (0, -1), "D": (0, 1),
+            "Q": (-1, -1), "E": (-1, 1), "Z": (1, -1), "C": (1, 1)
+        }
+        dr, dc = moves[action]
+        return (row + dr, col + dc)
+
+    def h(self, node):
+        """Heurística: Distància de Chebyshev (òptima per a 8 direccions amb cost 1)"""
+        r1, c1 = node.state
+        r2, c2 = self.goal
+        return max(abs(r1 - r2), abs(c1 - c2))
+
 def play():
-    print("Welcome to the Labyrinth Game!")
+    global movementCount, minCostToGold, bronzeCount, silverCount, goldCount, canSilver, canGold
+    
+    print("Benvingut/da al Joc del Laberint!")
 
     rows, cols = 12, 12
 
@@ -31,28 +89,54 @@ def play():
 
     #Creació del tauler buit
     board, current_row, current_col = generate_board(rows, cols)
+    
+    print("Calculant cost mínim fins a l'anell d'or...")
+    minCostToGold = calculate_total_min_cost(board, (current_row, current_col))
+    print(f"Cost mínim estimat: {minCostToGold}")
         
     #MOVIMENT/OPCIONS
     while True:
         for row in board:
             print(row)
+        
+        print(f"\nMoviments: {movementCount} | Cost Mínim: {minCostToGold} | Limit: {minCostToGold + 5}")
+        
         print("Opcions:")
-        print("W - Moure amunt")
-        print("A - Moure esquerra")
-        print("S - Moure avall")
-        print("D - Moure dreta")
-        print("Q - Moure amunt esquerra")
-        print("E - Moure amunt dreta")
-        print("Z - Moure avall esquerra")
-        print("C - Moure avall dreta")
+        print("W/A/S/D - Moviment Bàsic | Q/E/Z/C - Diagonals")
+        print("H - Hint (A*) | G - God Mode (Automàtic)")
         
         move = input("Indica el teu moviment o acció: ").upper()
+        
+        if move == "H":
+            action = get_next_best_move(board, (current_row, current_col))
+            if action:
+                print(f"\n>>> PISTA: Hauries de moure cap a: {action} <<<")
+            else:
+                print("\n>>> No s'ha trobat un camí possible! <<<")
+            continue
+            
+        elif move == "G":
+            print("\n--- ACTIVANT GOD MODE ---")
+            while not hasWon():
+                action = get_next_best_move(board, (current_row, current_col))
+                if not action:
+                    print("God Mode aturat: No hi ha camí.")
+                    break
+                if checkValidMove(board, current_row, current_col, action):
+                    board, current_row, current_col = movePlayer(board, current_row, current_col, action)
+                    movementCount += 1
+                else:
+                    break
+            if hasWon():
+                print("L'algorisme A* ha guanyat el joc per tu!")
+                break
+            continue
+
         if move in ["W", "A", "S", "D", "Q", "E", "Z", "C"]:
-            # Aquí es processaria el moviment del jugador
-            print(f"Has triat moure: {move}")
-            # Implementar la lògica de moviment i interacció amb el tauler
             if checkValidMove(board, current_row, current_col, move):
                 board, current_row, current_col = movePlayer(board, current_row, current_col, move)
+                movementCount += 1 # Incrementar comptador
+
                 if(hasWon()):
                     print("Felicitats! Has guanyat el joc!")
                     break
@@ -60,8 +144,88 @@ def play():
                 print("Moviment no vàlid. Intenta de nou.")
         else:
             print("Opció no reconeguda. Intenta de nou.")
-            
-            
+
+# --- Funcions auxiliars per a A* ---
+
+def get_next_best_move(board, current_pos):
+    """Calcula el següent moviment òptim cap a l'objectiu actual"""
+    target_char = "B"
+    if bronzeCount == N_BRONZE: target_char = "S"
+    if silverCount == N_SILVER: target_char = "G"
+    
+    # Busquem objectius del tipus actual
+    targets = []
+    for r in range(len(board)):
+        for c in range(len(board[0])):
+            if board[r][c] == target_char:
+                targets.append((r, c))
+    
+    if not targets: return None
+
+    # Trobem el camí al més proper
+    best_action = None
+    shortest_len = float('inf')
+    
+    for goal in targets:
+        prob = LabyrinthProblem(current_pos, goal, board, canSilver, canGold)
+        node = astar_search(prob)
+        if node:
+            solution = node.solution()
+            if len(solution) < shortest_len:
+                shortest_len = len(solution)
+                best_action = solution[0]
+                
+    return best_action
+
+def calculate_total_min_cost(board, start_pos):
+    """
+    Calcula el cost total mínim per recollir tots els anells en ordre.
+    Aquesta funció simula la recollida per obtenir el cost total inicial.
+    """
+    temp_board = [row[:] for row in board]
+    current = start_pos
+    total_cost = 0
+    
+    # 1. Cost per recollir tots els de Bronze
+    for _ in range(N_BRONZE):
+        targets = [(r, c) for r in range(12) for c in range(12) if temp_board[r][c] == "B"]
+        best_path_len, next_pos = find_closest_target_cost(temp_board, current, targets, False, False)
+        if next_pos:
+            total_cost += best_path_len
+            temp_board[next_pos[0]][next_pos[1]] = "."
+            current = next_pos
+        else: return 999 # Tauler impossible
+
+    # 2. Cost per recollir tots els de Plata
+    for _ in range(N_SILVER):
+        targets = [(r, c) for r in range(12) for c in range(12) if temp_board[r][c] == "S"]
+        best_path_len, next_pos = find_closest_target_cost(temp_board, current, targets, True, False)
+        if next_pos:
+            total_cost += best_path_len
+            temp_board[next_pos[0]][next_pos[1]] = "."
+            current = next_pos
+        else: return 999
+
+    # 3. Cost per recollir l'Or
+    gold_target = [(r, c) for r in range(12) for c in range(12) if temp_board[r][c] == "G"]
+    best_path_len, next_pos = find_closest_target_cost(temp_board, current, gold_target, True, True)
+    if next_pos:
+        total_cost += best_path_len
+    else: return 999
+
+    return total_cost
+
+def find_closest_target_cost(board, start, targets, can_s, can_g):
+    min_len = float('inf')
+    target_pos = None
+    for t in targets:
+        prob = LabyrinthProblem(start, t, board, can_s, can_g)
+        node = astar_search(prob)
+        if node:
+            if len(node.solution()) < min_len:
+                min_len = len(node.solution())
+                target_pos = t
+    return min_len, target_pos
 
 #------------------CREACIO TAULELL------------------
 
@@ -252,6 +416,7 @@ def checkValidMove(board, current_row, current_col, move):
                 else:
                     print("No pots recollir aquest anell encara. Recull tots els anells de bronze i plata primer.")
                     return False
+    return False
 
 def movePlayer(board, current_row, current_col, move):
     # Implementar la lògica per moure el jugador al tauler

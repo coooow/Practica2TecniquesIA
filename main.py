@@ -1,8 +1,8 @@
 def main():
-    print("Choose which game you want to play:")
-    print("1. Labyrinth Game")
-    print("2. Card Game")
-    choice = input("Enter the number of the game you want to play: ")
+    print("Tria quin joc vols jugar:")
+    print("1. Joc del Laberint")
+    print("2. Joc de Cartes")
+    choice = input("Introdueix el número del joc que vols jugar: ")
     if choice == "1":
         import labyrinth
         labyrinth.play()
