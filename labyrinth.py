@@ -121,14 +121,14 @@ def play():
             continue
 
         if move in ["W", "A", "S", "D", "Q", "E", "Z", "C"]:
-            if checkValidMove(board, current_row, current_col, move):
-                board, current_row, current_col = movePlayer(board, current_row, current_col, move)
+            if check_valid_move(board, current_row, current_col, move):
+                board, current_row, current_col = move_player(board, current_row, current_col, move)
                 movementCount += 1 # Incrementar comptador
 
-                if(hasWon()):
+                if(has_won()):
                     print("Felicitats! Has guanyat el joc!")
                     break
-                elif(hasLost()):
+                elif(has_lost()):
                     break
             else:
                 print("Moviment no vàlid. Intenta de nou.")
@@ -415,7 +415,7 @@ def generate_board(rows, cols):
     
     return board, current_row, current_col
 
-def checkValidMove(board, current_row, current_col, move):
+def check_valid_move(board, current_row, current_col, move):
     # Implementar la lògica per verificar si el moviment és vàlid
     # Comprovar les coordenades de destinació segons el moviment i assegurar-se que no hi hagi barreres ni sortida del tauler
     if move == "W":  # Moure amunt
@@ -474,7 +474,7 @@ def checkValidMove(board, current_row, current_col, move):
                     return False
     return False
 
-def movePlayer(board, current_row, current_col, move):
+def move_player(board, current_row, current_col, move):
     # Implementar la lògica per moure el jugador al tauler
     # Actualitzar les coordenades del jugador i el tauler segons el moviment
     if move == "W":  # Moure amunt
@@ -503,12 +503,12 @@ def movePlayer(board, current_row, current_col, move):
     
     return board, current_row, current_col
     
-def hasWon():
+def has_won():
     # Implementar la lògica per verificar si el jugador ha guanyat el joc
     # Comprovar si el jugador ha recollit l'anell d'or
     return goldCount == N_GOLD
 
-def hasLost():
+def has_lost():
     # Implementar la lògica per verificar si el jugador ha perdut el joc
     # Comprovar si el jugador ha superat el límit de moviments o si no hi ha camí possible cap a l'anell d'or
     if movementCount > minCostToGold + 5:
