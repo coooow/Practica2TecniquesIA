@@ -98,7 +98,7 @@ def play():
         
         print("Opcions:")
         print("W/A/S/D - Moviment Bàsic | Q/E/Z/C - Diagonals")
-        print("H - Hint (A*) | G - God Mode (Automàtic)")
+        print("H - Hint (A*) | G - God Mode (Full Path)")
         
         move = input("Indica el teu moviment o acció: ").upper()
         
@@ -111,20 +111,13 @@ def play():
             continue
             
         elif move == "G":
-            print("\n--- ACTIVANT GOD MODE ---")
-            while not hasWon():
-                action = get_next_best_move(board, (current_row, current_col))
-                if not action:
-                    print("God Mode aturat: No hi ha camí.")
-                    break
-                if checkValidMove(board, current_row, current_col, action):
-                    board, current_row, current_col = movePlayer(board, current_row, current_col, action)
-                    movementCount += 1
-                else:
-                    break
-            if hasWon():
-                print("L'algorisme A* ha guanyat el joc per tu!")
-                break
+            print("\n--- ACTIVANT GOD MODE (FULL PATH) ---")
+            sequence = get_full_solution_sequence(board, (current_row, current_col), bronzeCount, silverCount, canSilver, canGold)
+            if sequence:
+                print(f"\n>>> SEQUENCIA DE MOVIMENTS FINS AL FINAL: {', '.join(sequence)} <<<")
+                print(f">>> Total moviments: {len(sequence)} <<<")
+            else:
+                print("\n>>> No s'ha trobat un camí possible fins al final! <<<")
             continue
 
         if move in ["W", "A", "S", "D", "Q", "E", "Z", "C"]:
@@ -180,9 +173,12 @@ def calculate_total_min_cost(board, start_pos):
     current = start_pos
     total_cost = 0
     
+    rows = len(board)
+    cols = len(board[0])
+    
     # 1. Cost per recollir tots els de Bronze
     for _ in range(N_BRONZE):
-        targets = [(r, c) for r in range(12) for c in range(12) if temp_board[r][c] == "B"]
+        targets = [(r, c) for r in range(rows) for c in range(cols) if temp_board[r][c] == "B"]
         best_path_len, next_pos = find_closest_target_cost(temp_board, current, targets, False, False)
         if next_pos:
             total_cost += best_path_len
@@ -192,7 +188,7 @@ def calculate_total_min_cost(board, start_pos):
 
     # 2. Cost per recollir tots els de Plata
     for _ in range(N_SILVER):
-        targets = [(r, c) for r in range(12) for c in range(12) if temp_board[r][c] == "S"]
+        targets = [(r, c) for r in range(rows) for c in range(cols) if temp_board[r][c] == "S"]
         best_path_len, next_pos = find_closest_target_cost(temp_board, current, targets, True, False)
         if next_pos:
             total_cost += best_path_len
@@ -201,7 +197,7 @@ def calculate_total_min_cost(board, start_pos):
         else: return 999
 
     # 3. Cost per recollir l'Or
-    gold_target = [(r, c) for r in range(12) for c in range(12) if temp_board[r][c] == "G"]
+    gold_target = [(r, c) for r in range(rows) for c in range(cols) if temp_board[r][c] == "G"]
     best_path_len, next_pos = find_closest_target_cost(temp_board, current, gold_target, True, True)
     if next_pos:
         total_cost += best_path_len
@@ -220,6 +216,72 @@ def find_closest_target_cost(board, start, targets, can_s, can_g):
                 min_len = len(node.solution())
                 target_pos = t
     return min_len, target_pos
+
+def find_closest_target_path(board, start, targets, can_s, can_g):
+    min_len = float('inf')
+    best_path = None
+    target_pos = None
+    for t in targets:
+        prob = LabyrinthProblem(start, t, board, can_s, can_g)
+        node = astar_search(prob)
+        if node:
+            sol = node.solution()
+            if len(sol) < min_len:
+                min_len = len(sol)
+                best_path = sol
+                target_pos = t
+    return best_path, target_pos
+
+def get_full_solution_sequence(board, start_pos, b_count, s_count, can_s, can_g):
+    temp_board = [row[:] for row in board]
+    current = start_pos
+    all_moves = []
+    
+    temp_b_count = b_count
+    temp_s_count = s_count
+    temp_can_s = can_s
+    temp_can_g = can_g
+    
+    rows = len(board)
+    cols = len(board[0])
+    
+    # 1. Cost per recollir tots els de Bronze restants
+    while temp_b_count < N_BRONZE:
+        targets = [(r, c) for r in range(rows) for c in range(cols) if temp_board[r][c] == "B"]
+        if not targets: break
+        path, next_pos = find_closest_target_path(temp_board, current, targets, temp_can_s, temp_can_g)
+        if next_pos:
+            all_moves.extend(path)
+            temp_board[next_pos[0]][next_pos[1]] = "."
+            current = next_pos
+            temp_b_count += 1
+            if temp_b_count == N_BRONZE:
+                temp_can_s = True
+        else: return None
+
+    # 2. Cost per recollir tots els de Plata restants
+    while temp_s_count < N_SILVER:
+        targets = [(r, c) for r in range(rows) for c in range(cols) if temp_board[r][c] == "S"]
+        if not targets: break
+        path, next_pos = find_closest_target_path(temp_board, current, targets, temp_can_s, temp_can_g)
+        if next_pos:
+            all_moves.extend(path)
+            temp_board[next_pos[0]][next_pos[1]] = "."
+            current = next_pos
+            temp_s_count += 1
+            if temp_s_count == N_SILVER:
+                temp_can_g = True
+        else: return None
+
+    # 3. Cost per recollir l'Or
+    gold_target = [(r, c) for r in range(rows) for c in range(cols) if temp_board[r][c] == "G"]
+    if gold_target:
+        path, next_pos = find_closest_target_path(temp_board, current, gold_target, temp_can_s, temp_can_g)
+        if next_pos:
+            all_moves.extend(path)
+        else: return None
+
+    return all_moves
 
 #------------------CREACIO TAULELL------------------
 
