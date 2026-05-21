@@ -25,11 +25,6 @@ minCostToGold = 0
 # Classe per al problema de cerca
 class LabyrinthProblem(Problem):
     def __init__(self, initial, goal, board, can_silver, can_gold):
-        """
-        initial: (row, col)
-        goal: (row, col)
-        board: matriu 2D
-        """
         super().__init__(initial, goal)
         self.board = board
         self.can_silver = can_silver
@@ -66,8 +61,8 @@ class LabyrinthProblem(Problem):
         dr, dc = moves[action]
         return (row + dr, col + dc)
 
+    #Distancia de Chebyshev com a heurística
     def h(self, node):
-        """Heurística: Distància de Chebyshev (òptima per a 8 direccions amb cost 1)"""
         r1, c1 = node.state
         r2, c2 = self.goal
         return max(abs(r1 - r2), abs(c1 - c2))
@@ -140,6 +135,8 @@ def play():
                 if(hasWon()):
                     print("Felicitats! Has guanyat el joc!")
                     break
+                elif(hasLost()):
+                    break
             else:
                 print("Moviment no vàlid. Intenta de nou.")
         else:
@@ -147,8 +144,8 @@ def play():
 
 # --- Funcions auxiliars per a A* ---
 
+# Calcula el millor moviment seguent cap a l'objectiu actual (Bronze, Plata o Or) utilitzant A*
 def get_next_best_move(board, current_pos):
-    """Calcula el següent moviment òptim cap a l'objectiu actual"""
     target_char = "B"
     if bronzeCount == N_BRONZE: target_char = "S"
     if silverCount == N_SILVER: target_char = "G"
@@ -177,11 +174,8 @@ def get_next_best_move(board, current_pos):
                 
     return best_action
 
+#Calcula el cost total mínim per recollir tots els anells en ordre (Bronze -> Plata -> Or) utilitzant A* per simular la recollida
 def calculate_total_min_cost(board, start_pos):
-    """
-    Calcula el cost total mínim per recollir tots els anells en ordre.
-    Aquesta funció simula la recollida per obtenir el cost total inicial.
-    """
     temp_board = [row[:] for row in board]
     current = start_pos
     total_cost = 0
@@ -451,3 +445,11 @@ def hasWon():
     # Implementar la lògica per verificar si el jugador ha guanyat el joc
     # Comprovar si el jugador ha recollit l'anell d'or
     return goldCount == N_GOLD
+
+def hasLost():
+    # Implementar la lògica per verificar si el jugador ha perdut el joc
+    # Comprovar si el jugador ha superat el límit de moviments o si no hi ha camí possible cap a l'anell d'or
+    if movementCount > minCostToGold + 5:
+        print("Has superat el límit de moviments! Has perdut el joc.")
+        return True
+    return False
