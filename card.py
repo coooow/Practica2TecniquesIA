@@ -214,7 +214,7 @@ def utilitat(maquina, huma):
 
     # Bloquejar ajuda, però no ha de valer més que progressar
     if huma.bloquejat:
-        valor_maquina += 3
+        valor_maquina += 8
 
     if maquina.bloquejat:
         valor_maquina -= 20
